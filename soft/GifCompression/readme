@@ -1,6 +1,6 @@
 1. main.cpp和stdtostring.h是我们自己编写的压缩代码所在的两个主要文件
 
-2. FreeImage.h和libfreeimage-3.17.0.so是调用的第三方库FreeImage的所需文件
+2. FreeImage.h和libfreeimage.a是调用的第三方库FreeImage的所需文件
 
 3.gifsicle是调用的第三方可执行文件，我们在程序中通过子进程调用了这个文件，
 需要放在main.cpp所在的当前目录下
@@ -12,12 +12,20 @@
 gifPath就是gif文件所在的完整路径，比如：
 ./CompressGif -s /home/deng/Documents/TestGifs/timg_1.gif
 
-5. 执行成功，程序返回：XXX was compressed successfully. 说明对原gif进行了压缩
-   执行失败，程序返回：XXX wasn't compressed, leave it as it is. 说明没有对原gif进行压缩，保持不变
+5. 执行成功，程序返回：Compressed!. 说明对原gif进行了压缩
+   执行失败，程序返回：NOT Compressed!. 说明没有对原gif进行压缩，保持不变
 
+6. 在这个文件夹下输入“make”即可编译生成可执行文件CompressGif，如果需要把该可执行文件CompressGif
+拿到别的地方去用，那只需要将该文件CompressGif和gifsicle这个文件一起拷贝到你指定的目录，放在同一级目录下
+就可以了，其他的文件一律可以不用。
+
+7. 编译的时候会提示一个warning:
+libfreeimage.a(strenc.o): In function `StrIOEncInit':
+strenc.c:(.text+0x17cc): warning: the use of `tmpnam' is dangerous, better use `mkstemp'
+这是FreeImage库本身的问题，不用去管，不影响程序正确运行！
 
 
 
 
 中台事业部 图像视频技术组 
-邓建强 2017.05.11
+邓建强 2017.05.17

@@ -314,11 +314,11 @@ int main(int argc, char *argv[])
 	//Step2: Compress gif
 	if (compressGif(strSrcPath))
 	{
-		std::cout << strSrcPath << " was compressed successfully." << std::endl;
+		std::cout << "Compressed!" << std::endl;
 	}
 	else
 	{
-		std::cout << strSrcPath << " wasn't compressed, leave it as it is." << std::endl;
+		std::cout << "NOT Compressed!" << std::endl;
 	}
 
 	return 0;
