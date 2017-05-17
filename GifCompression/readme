@@ -1,0 +1,23 @@
+1. main.cpp和stdtostring.h是我们自己编写的压缩代码所在的两个主要文件
+
+2. FreeImage.h和libfreeimage-3.17.0.so是调用的第三方库FreeImage的所需文件
+
+3.gifsicle是调用的第三方可执行文件，我们在程序中通过子进程调用了这个文件，
+需要放在main.cpp所在的当前目录下
+
+4. 输入make命令会生成最终的可执行文件CompressGif，执行程序的时候需要输入的参数类似下面这样：
+
+./CompressGif -s gifPath
+
+gifPath就是gif文件所在的完整路径，比如：
+./CompressGif -s /home/deng/Documents/TestGifs/timg_1.gif
+
+5. 执行成功，程序返回：XXX was compressed successfully. 说明对原gif进行了压缩
+   执行失败，程序返回：XXX wasn't compressed, leave it as it is. 说明没有对原gif进行压缩，保持不变
+
+
+
+
+
+中台事业部 图像视频技术组 
+邓建强 2017.05.11
