@@ -136,25 +136,56 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
         const char *shellPath = "./gifsicle";
 
         //创建子进程来调用execv函数，并等待执行完成
+        int status;
         pid_t fpid = fork();
-        if (fpid == 0)
+        if (-1 == fpid) //创建子进程出错
         {
-             if (execv(shellPath, paramsArr) < 0)
-             {
-                 std::cerr << "Failed to execute gifsicle-result!" << std::endl;
-                 return false;
-             }
-             //exit(EXIT_SUCCESS);
-             return 0;
+            std::cerr << "Failed to create a child process-result!" << std::endl;
+            return false;
         }
-        waitpid(fpid, NULL, 0);
+        else if (0 == fpid) //执行子进程
+        {
+            if (execv(shellPath, paramsArr) < 0) //execv只有出错才有返回值
+            {
+                std::cerr << "Failed to execute gifsicle-result!" << std::endl;
+                //如果这个函数调用失败，我们最终目的应该是退出整个函数，返回false，代表未压缩成功
+                //因此这里如果执行失败，应该以一个错误状态退出，反馈给父进程，然后父进程捕捉到之后
+                //返回一个false，告诉整个函数结束了，没有压缩成功！
 
-        for (int i = 0; i < numParams + 1; i++)
-        {
-            delete []paramsArr[i];
+                _exit(5);
+            }
+
         }
-        delete []paramsArr;
-        paramsArr = NULL;
+        else //父进程应先阻塞，等待子进程执行完毕，再执行父进程
+        {
+            wait(&status);
+
+            //清理分配的动态内存
+            for (int i = 0; i < numParams + 1; i++)
+            {
+                delete []paramsArr[i];
+            }
+            delete []paramsArr;
+            paramsArr = NULL;
+
+            //判断子进程的退出状态
+            if (0 != WIFEXITED(status)) //子进程正常退出
+            {
+                //如果execv调用失败，子进程以5这个值返回，所以判断返回值是否为5
+                if (5 == WEXITSTATUS(status))
+                {
+
+                    return false;
+                }
+
+            }
+            else //WIFEXITED(status)返回0，子进程异常退出
+            {
+                std::cerr << "Child process-result exit abnormally!" << std::endl;
+                return false;
+            }
+
+        }
 
 	}
 	else
@@ -229,35 +260,67 @@ bool compressGif(std::string filePath)
                 paramsArr[numParams] = NULL;
 
                 const char *shellPath = "./gifsicle";
-                //创建子进程来调用execv
+
+                 //创建子进程来调用execv函数，并等待执行完成
+                int status;
                 pid_t fpid = fork();
-                if (fpid ==  0)
+                if (-1 == fpid) //创建子进程出错
                 {
-                    if (execv(shellPath, paramsArr) < 0)
+                    std::cerr << "Failed to create a child process-color!" << std::endl;
+                    return false;
+                }
+                else if (0 == fpid) //执行子进程
+                {
+                    if (execv(shellPath, paramsArr) < 0) //execv只有出错才有返回值
                     {
-                        std::cerr << "Failed to execute gifsicle-result!" << std::endl;
+                        std::cerr << "Failed to execute gifsicle-color!" << std::endl;
+                        //如果这个函数调用失败，我们最终目的应该是退出整个函数，返回false，代表未压缩成功
+                        //因此这里如果执行失败，应该以一个错误状态退出，反馈给父进程，然后父进程捕捉到之后
+                        //返回一个false，告诉整个函数结束了，没有压缩成功！
+
+                        _exit(5);
+                    }
+
+                }
+                else //父进程应阻塞，等待子进程执行完毕，再执行父进程
+                {
+                    wait(&status);
+
+                    //清理分配的动态内存
+                    for (int i = 0; i < numParams + 1; i++)
+                    {
+                        delete []paramsArr[i];
+                    }
+                    delete []paramsArr;
+                    paramsArr = NULL;
+
+                    //判断子进程的退出状态
+                    if (0 != WIFEXITED(status)) //子进程正常退出
+                    {
+                        //如果execv调用失败，子进程以5这个值返回，所以判断返回值是否为5
+                        if (5 == WEXITSTATUS(status))
+                        {
+                            return false;
+                        }
+                    }
+                    else //WIFEXITED(status)返回0，子进程异常退出
+                    {
+                        std::cerr << "Child process-color exit abnormally!" << std::endl;
                         return false;
                     }
-                    //exit(EXIT_SUCCESS);
-                    return 0;
+
+                    //子进程正常退出，且返回值status不是5，则执行下面的代码
+                    bool res = CompressGifGlobal(gif, nFrames, gap, filePath);
+                    FreeImage_CloseMultiBitmap(gif, 0);
+
+                    if (res == false)
+                    {
+                        return false;
+                    }
+
+
                 }
-                waitpid(fpid, NULL, 0);
 
-
-                for (int i = 0; i < numParams + 1; i++)
-                {
-                    delete []paramsArr[i];
-                }
-                delete []paramsArr;
-                paramsArr = NULL;
-
-				bool res = CompressGifGlobal(gif, nFrames, gap, filePath);
-				FreeImage_CloseMultiBitmap(gif, 0);
-
-				if (res == false)
-				{
-					return false;
-				}
 			} //if (palette1 == 0)
 			else if (palette1 == 1)
 			{
