@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h> 
 
 #include <string>
 #include <string.h>
@@ -148,6 +149,7 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
             if (execv(shellPath, paramsArr) < 0) //execv只有出错才有返回值
             {
                 std::cerr << "Failed to execute gifsicle-result!" << std::endl;
+				std::cerr << "ERROR: value = " << errno << ", it means : " << strerror(errno) << std::endl; 
                 //如果这个函数调用失败，我们最终目的应该是退出整个函数，返回false，代表未压缩成功
                 //因此这里如果执行失败，应该以一个错误状态退出，反馈给父进程，然后父进程捕捉到之后
                 //返回一个false，告诉整个函数结束了，没有压缩成功！
@@ -274,6 +276,7 @@ bool compressGif(std::string filePath)
                     if (execv(shellPath, paramsArr) < 0) //execv只有出错才有返回值
                     {
                         std::cerr << "Failed to execute gifsicle-color!" << std::endl;
+						std::cerr << "ERROR: value = " << errno << ", it means : " << strerror(errno) << std::endl;
                         //如果这个函数调用失败，我们最终目的应该是退出整个函数，返回false，代表未压缩成功
                         //因此这里如果执行失败，应该以一个错误状态退出，反馈给父进程，然后父进程捕捉到之后
                         //返回一个false，告诉整个函数结束了，没有压缩成功！
