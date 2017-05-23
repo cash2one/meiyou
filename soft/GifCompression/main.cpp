@@ -34,7 +34,7 @@ int calcGap(int numFrames)
 	return gap;
 }
 
-bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::string &filePath)
+bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::string &filePath, const std::string& gifsiclePath)
 {
 	//Step1: Calc delay of each frame
 	LONG totalDelay = 0;
@@ -134,7 +134,7 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
         }
         paramsArr[numParams] = NULL;
 
-        const char *shellPath = "./gifsicle";
+        //const char *shellPath = "./gifsicle";
 
         //创建子进程来调用execv函数，并等待执行完成
         int status;
@@ -146,7 +146,7 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
         }
         else if (0 == fpid) //执行子进程
         {
-            if (execv(shellPath, paramsArr) < 0) //execv只有出错才有返回值
+            if (execv(gifsiclePath.c_str(), paramsArr) < 0) //execv只有出错才有返回值
             {
                 std::cerr << "Failed to execute gifsicle-result!" << std::endl;
 				std::cerr << "ERROR: value = " << errno << ", it means : " << strerror(errno) << std::endl;
@@ -198,12 +198,12 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
 	return true;
 }
 
-bool compressGif(std::string filePath)
+bool compressGif(const std::string& filePath, const std::string& gifsiclePath)
 {
 	try
 	{
 		//Step1: read gif
-		FIMULTIBITMAP *gif = FreeImage_OpenMultiBitmap(FIF_GIF, filePath.c_str(), FALSE, TRUE, FALSE, GIF_DEFAULT);
+		FIMULTIBITMAP *gif = FreeImage_OpenMultiBitmap(FIF_GIF, filePath.c_str(), FALSE, FALSE, FALSE, GIF_DEFAULT);
 		int nFrames = FreeImage_GetPageCount(gif);
 
 		if (0 == nFrames)
@@ -218,7 +218,8 @@ bool compressGif(std::string filePath)
 
 		if (gap > 1)
 		{
-			//Step3: check gif have local palette or not
+
+			//Step3: check if gif have local palette
 			FIBITMAP *palFrame1 = FreeImage_LockPage(gif, 1);
 			FITAG *tagPalette1 = NULL;
 			FreeImage_GetMetadata(FIMD_ANIMATION, palFrame1, "NoLocalPalette", &tagPalette1);
@@ -242,14 +243,12 @@ bool compressGif(std::string filePath)
 				FIBITMAP *palFrame0 = FreeImage_LockPage(gif, 0);
 				int nColors = FreeImage_GetColorsUsed(palFrame0);
                 FreeImage_UnlockPage(gif, palFrame0, FALSE);
+                //第一次调用gifsicle删除local palette之前先关闭打开的gif文件
+                FreeImage_CloseMultiBitmap(gif, 0);
 
-                //std::cout << "nColors = " << nColors << std::endl;
                 //2017.05.19修改记录：有些gif的local色盘如果都是256，不知道为什么colors设置成
                 //256之后会造成第一帧的delay变得非常大。而且256和128的显示效果差不多，所以设置成128
-                if (256 == nColors)
-                {
-                    nColors /= 2;
-                }
+                //原因：进行第一次调用gifsicle之前没有关闭打开的gif！
 
                 //remove local palette
                 std::vector<std::string> paramVec;
@@ -269,7 +268,7 @@ bool compressGif(std::string filePath)
                 }
                 paramsArr[numParams] = NULL;
 
-                const char *shellPath = "./gifsicle";
+                //const char *shellPath = "./gifsicle";
 
                  //创建子进程来调用execv函数，并等待执行完成
                 int status;
@@ -281,7 +280,7 @@ bool compressGif(std::string filePath)
                 }
                 else if (0 == fpid) //执行子进程
                 {
-                    if (execv(shellPath, paramsArr) < 0) //execv只有出错才有返回值
+                    if (execv(gifsiclePath.c_str(), paramsArr) < 0) //execv只有出错才有返回值
                     {
                         std::cerr << "Failed to execute gifsicle-color!" << std::endl;
 						std::cerr << "ERROR: value = " << errno << ", it means : " << strerror(errno) << std::endl;
@@ -320,11 +319,20 @@ bool compressGif(std::string filePath)
                         return false;
                     }
 
-
                     //子进程正常退出，且返回值status不是5，则执行下面的代码
-                    bool res = CompressGifGlobal(gif, nFrames, gap, filePath);
+                    //重新打开gif进行抽帧
+                    FIMULTIBITMAP *gif2 = FreeImage_OpenMultiBitmap(FIF_GIF, filePath.c_str(), FALSE, FALSE, FALSE, GIF_DEFAULT);
+                    int nFrames2 = FreeImage_GetPageCount(gif2);
 
-                    FreeImage_CloseMultiBitmap(gif, 0);
+                    if (0 == nFrames2)
+                    {
+                        std::cout << "Empty gif2 file!" << std::endl;
+                        return false;
+                    }
+
+                    bool res = CompressGifGlobal(gif2, nFrames2, gap, filePath, gifsiclePath);
+
+                    FreeImage_CloseMultiBitmap(gif2, 0);
 
                     if (res == false)
                     {
@@ -337,7 +345,7 @@ bool compressGif(std::string filePath)
 			} //if (palette1 == 0)
 			else if (palette1 == 1)
 			{
-				bool res = CompressGifGlobal(gif, nFrames, gap, filePath);
+				bool res = CompressGifGlobal(gif, nFrames, gap, filePath, gifsiclePath);
 
 				FreeImage_CloseMultiBitmap(gif, 0);
 
@@ -366,17 +374,24 @@ int main(int argc, char *argv[])
 {
 	//Step1: Check params
 	std::string strSrcPath = "";
+	std::string gifsiclePath = "";
+
 	int nParam;
-	while ((nParam = getopt(argc, argv, "Hs:")) != -1)
+	while ((nParam = getopt(argc, argv, "Hs:g:")) != -1)
 	{
 		if (nParam == 's')
 		{
 			strSrcPath = optarg;
 		}
+		else if (nParam == 'g')
+        {
+            gifsiclePath = optarg;
+        }
 		else if (nParam == 'H')
 		{
-			std::cout << "Usage: exclip [options] [-s] <source_file> [--] [args...]" << std::endl;
-			std::cout << "-s<path>  the path of source file" << std::endl;
+			std::cout << "Usage: exclip [options] [-s] <source_file> [-g] <gifsiclePath> [--] [args...]" << std::endl;
+			std::cout << "-s<path>  the path of source gif file" << std::endl;
+			std::cout << "-g<path>  the path of gifsicle program" << std::endl;
 			return 0;
 		}
 	}
@@ -387,10 +402,16 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	if (gifsiclePath == "")
+    {
+        std::cerr << "you should specify the path of gifsicle program.[use -H for help]" << std::endl;
+		return 1;
+    }
+
 	//Step2: Compress gif
-	if (compressGif(strSrcPath))
+	if (compressGif(strSrcPath, gifsiclePath))
 	{
-		std::cout << "Compressed" << std::endl;
+		std::cout << "Compressed!" << std::endl;
 	}
 	else
 	{
