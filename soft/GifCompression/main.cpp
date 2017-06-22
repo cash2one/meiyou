@@ -13,6 +13,8 @@
 #include "FreeImage.h"
 #include "stdtostring.h"
 
+#include <time.h>
+
 // Calc the gap of reduce frame
 int calcGap(int numFrames)
 {
@@ -60,15 +62,22 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
 
 			if (curDelay != 0)
 			{
+			    //std::cout << "curDelay = " << curDelay << std::endl;
 				//FreeImage use ms, Gifsicle use cs, need to convert
 				int csDelay = (int)(curDelay / 10);
 				delayVec.push_back(csDelay);
-				totalDelay += csDelay;
 
-				if (curDelay > 500)
+                //如果当前帧delay大于500ms，那么给totalDelay加上固定的80ms，而不是当前帧的delay
+				if (csDelay >= 50)
 				{
+					totalDelay += 8;
 					count++;
 				}
+				else
+                {
+                    totalDelay += csDelay;
+                }
+
 			}
 			else
 			{
@@ -81,7 +90,7 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
 	}
 
 	//Step2: Reduce frame
-	if (count < (int)(nFrames * 0.7))
+	if (count < (int)(nFrames * 0.5))
 	{
 		int newNumFrames = (int)(nFrames / gap);
 
@@ -91,7 +100,11 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
 			double scale = (newNumFrames * 1.0 * 20) / totalDelay;
 			for (int i = 0; i < (int)delayVec.size(); i++)
 			{
-				delayVec[i] = (int)(delayVec[i] * scale);
+			    //大于500ms的帧delay得保留，不能scale
+			    if (delayVec[i] < 50)
+                {
+                    delayVec[i] = (int)(delayVec[i] * scale);
+                }
 			}
 		}
 
@@ -104,21 +117,41 @@ bool CompressGifGlobal(FIMULTIBITMAP *gif, int nFrames, int gap, const std::stri
 		//reduce frame
 		for (int i = 0; i < nFrames; i++)
 		{
-			if (i % gap == 0)
-			{
-				int tempDelay = 0;
-				for (int k = 0; k < gap; k++)
-				{
-					int curIdx = i + k;
-					if (curIdx >= nFrames)
-						break;
-
-					tempDelay += delayVec[curIdx];
-				}
-
-				paramVec.push_back(std::string("-d" + std::to_string(tempDelay)));
+		    //如果当前帧的delay大于500ms，这一帧直接保留
+		    if (delayVec[i] >= 50)
+            {
+                //std::cout << "The delay of this frame is greater than 500ms, reserve this frame!" << std::endl;
+                paramVec.push_back(std::string("-d" + std::to_string(delayVec[i])));
 				paramVec.push_back(std::string("#" + std::to_string(i)));
-			}
+            }
+            else
+            {
+                if (i % gap == 0)
+                {
+                    int tempDelay = 0;
+                    for (int k = 0; k < gap; k++)
+                    {
+                        int curIdx = i + k;
+                        if (curIdx >= nFrames)
+                            break;
+                        //如果当前第i帧后面的某一帧delay大于500ms，那么不给当前帧加那大于500ms的时间
+                        //而是直接加上一个80ms，因为大于500ms的那一帧在后面的处理中肯定是会保留的
+                        if (delayVec[curIdx] >= 50)
+                        {
+                            tempDelay += 8;
+                        }
+                        else
+                        {
+                            tempDelay += delayVec[curIdx];
+                        }
+
+                    }
+
+                    paramVec.push_back(std::string("-d" + std::to_string(tempDelay)));
+                    paramVec.push_back(std::string("#" + std::to_string(i)));
+                }
+            }
+
 		}
 
 		paramVec.push_back(std::string("--optimize=2"));
