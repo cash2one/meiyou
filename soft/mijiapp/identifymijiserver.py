@@ -18,17 +18,17 @@ logging.basicConfig(level=logging.WARNING,
                     filename='log/myapp.log',
                     filemode='w')
 
-labels = ["非密集恐惧", "密集恐惧", "无法识别"]
+labels = [u"非密集恐惧", u"密集恐惧", u"无法识别"]
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/23.0'}
 
 with tf.gfile.FastGFile("identifyData.pb", 'rb') as f:
-    logging.info("开始加载pb文件...")
+    logging.info(u"开始加载pb文件...")
     start = time.clock()
     graph_def = tf.GraphDef()
     graph_def.ParseFromString(f.read())
     tf.import_graph_def(graph_def, name='')
     end = time.clock()
-    logging.info("加载pb文件结束!耗时:"+str(end-start))
+    logging.info(u"加载pb文件结束!耗时:"+str(end-start))
 
 # 使用Flask框架实现文本落地识别
 app = Flask(__name__)
@@ -40,30 +40,30 @@ picValLines = []
 def loadLib():
     soPicVal = ctypes.cdll.LoadLibrary
     try:
-        logging.info("开始加载lib文件...")
+        logging.info(u"开始加载lib文件...")
         start = time.clock()
         libPicVal = soPicVal("./libPicVal.so")
         end = time.clock()
-        logging.info("lib文件加载完成!耗时:"+str(end-start))
+        logging.info(u"lib文件加载完成!耗时:"+str(end-start))
         return libPicVal
     except Exception as e:
-        logging.error("lib文件加载失败!" )
+        logging.error(u"lib文件加载失败!" )
         print e
         return None
 
 
 def loadPicValLines():
     try:
-        logging.info("开始加载picval文件...")
+        logging.info(u"开始加载picval文件...")
         start = time.clock()
         pic_val_file = open("./picval.txt", 'r')
         for line in pic_val_file:
             picValLines.append(line)
         pic_val_file.close()
         end = time.clock()
-        logging.info("picval文件加载完成!耗时:"+str(end-start))
+        logging.info(u"picval文件加载完成!耗时:"+str(end-start))
     except Exception as e:
-        logging.error("加载picval文件失败!")
+        logging.error(u"加载picval文件失败!")
         print e
 
 
@@ -95,7 +95,7 @@ def identifyByVal(strFilePath):
 
 
 def downloadImage(image_path, url):
-    logging.info("开始下载图片:"+url)
+    logging.info(u"开始下载图片:"+url)
     start = time.clock()
     request = urllib2.Request(url, None, headers)
     response = urllib2.urlopen(request)
@@ -103,7 +103,7 @@ def downloadImage(image_path, url):
     f.write(response.read())
     f.close()
     end = time.clock()
-    logging.info("图片下载完成!耗时:"+str(end-start))
+    logging.info(u"图片下载完成!耗时:"+str(end-start))
 
 @app.route("/identify", methods=['POST', 'GET'])
 def index():
@@ -115,11 +115,11 @@ def identify():
     result = {}
     if not request.args.get('url'):
         result["code"] = -1
-        result["message"] = "输入参数错误!"
+        result["message"] = u"输入参数错误!"
     else:
         try:
             url = request.args.get('url')
-            logging.info("开始识别图片:" + url)
+            logging.info(u"开始识别图片:" + url)
             image_path = "tmp/" + url.split("/")[-1]
             downloadImage(image_path, url)
             start2 = time.clock()
@@ -142,19 +142,19 @@ def identify():
                         result["code"] = 2
                         result["message"] = labels[2]
                 except  Exception as e:
-                    logging.error("识别密集恐怖图片失败!" )
+                    logging.error(u"识别密集恐怖图片失败!" )
                     print e
                     result["code"] = 2
                     result["message"] = labels[2]
         except  Exception as e:
-            logging.error("识别密集恐怖图片失败!")
+            logging.error(u"识别密集恐怖图片失败!")
             print e
             result["code"] = 2
             result["message"] = labels[2]
         if os.path.exists(image_path):
             os.remove(image_path)
     end = time.clock()
-    logging.info("识别图片结束!耗时:"+str(end-start)+" 其中计算耗时:"+str(end-start2))
+    logging.info(u"识别图片结束!耗时:"+str(end-start)+u" 其中计算耗时:"+str(end-start2))
     return jsonify(result)
 
 
@@ -163,9 +163,9 @@ if __name__ == '__main__':
     loadPicValLines()
     sess = tf.Session()
     softmax_tensor = sess.graph.get_tensor_by_name('final_result:0')
-    logging.info("资源文件加载完成!")
+    logging.info(u"资源文件加载完成!")
     if libPicVal == None or len(picValLines) == 0:
-        logging.error("资源文件加载失败!")
+        logging.error(u"资源文件加载失败!")
     else:
         app.run(debug=True)
         # url = "http://mycdn.seeyouyima.com/news/img/148d70e3f71a2cfb826157bee1895e12_600_399.jpg";
