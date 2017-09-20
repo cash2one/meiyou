@@ -131,7 +131,7 @@ def identify():
                 try:
                     image = tf.gfile.FastGFile(image_path, 'rb').read()
                     predict = sess.run(softmax_tensor, {'DecodeJpeg/contents:0': image})
-                    print image_path
+                    # print image_path
                     if predict[0][0] > 0.8:
                         result["code"] = 0
                         result["message"] = labels[0]
@@ -143,12 +143,12 @@ def identify():
                         result["message"] = labels[2]
                 except  Exception as e:
                     logging.error(u"识别密集恐怖图片失败!" )
-                    print e
+                    # print e
                     result["code"] = 2
                     result["message"] = labels[2]
         except  Exception as e:
             logging.error(u"识别密集恐怖图片失败!")
-            print e
+            # print e
             result["code"] = 2
             result["message"] = labels[2]
         if os.path.exists(image_path):
