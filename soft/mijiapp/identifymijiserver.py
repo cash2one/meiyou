@@ -82,7 +82,7 @@ def identifyByVal(strFilePath):
     bmiji = 0
     for line in picValLines:
         lingstrip = line.strip()
-        if len(lingstrip) > nValNum:
+        if len(lingstrip) >=  nValNum:
             pic_val_line = lingstrip[-nValNum:]
             ndifcount = 0
             for i in range(nValNum):
@@ -139,8 +139,8 @@ def identify():
                         result["code"] = 1
                         result["message"] = labels[1]
                     else:
-                        result["code"] = 2
-                        result["message"] = labels[2]
+                        result["code"] = 0
+                        result["message"] = labels[0]
                 except  Exception as e:
                     logging.error(u"识别密集恐怖图片失败!" )
                     # print e
