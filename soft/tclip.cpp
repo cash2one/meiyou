@@ -22,7 +22,7 @@ bool debug = false;
 clock_t start;
 clock_t clt;
 
-#define show_debug(tip,message) if(debug){ cout << tip << message << endl;}
+#define show_debug(tip,message) if(debug){ cout << tip << " : " << message << endl;}
 
 int detectFace( Mat img , string face_cascade_name){
     CascadeClassifier face_cascade;
@@ -43,14 +43,33 @@ int detectFace( Mat img , string face_cascade_name){
     
     cvtColor( img, img_gray, CV_BGR2GRAY );
     equalizeHist( img_gray, img_gray );
-    face_cascade.detectMultiScale( img_gray, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
+    face_cascade.detectMultiScale( img_gray, faces, 1.05, 1 );
     face_size = faces.size();
     
     show_debug("detectFace:face size is ", face_size);
     
     if ( face_size > 0)
     {
-        Y = faces[0].y + faces[0].height / 2;
+        int nIdx = 0;
+        float fMaxArea = 0.0f;
+        
+        for (int i = 0; i < face_size; i++)
+        {
+            if (0 == i)
+            {
+                nIdx = 0;
+                fMaxArea = faces[0].width * faces[0].height;
+            }
+            
+            float fAreaTmp = faces[i].width * faces[i].height;
+            if (fAreaTmp > fMaxArea)
+            {
+                nIdx = i;
+                fMaxArea = fAreaTmp;
+            }
+        }
+        
+        Y = faces[nIdx].y + faces[nIdx].height / 2;
         return Y;
     } else {
         return -1;
